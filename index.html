@@ -88,25 +88,6 @@ URL: https://code.google.com/p/io-2012-slides
   </slide>
 
   <slide>
-    <hgroup>
-      <h2>Leaving Heroku</h2>
-    </hgroup>
-    <article>
-      <p>
-        What's the low-hanging fruit?
-      </p>
-      <p>
-        What's the easiest thing we can do to scale?
-      </p>
-      <ul class="build">
-        <li>Postgres read slaves</li>
-        <li>DynamoDB</li>
-        <li>Services</li>
-      </ul>
-    </article>
-  </slide>
-
-  <slide>
     <aside class="note">
       <section>
         <p>
@@ -120,7 +101,15 @@ URL: https://code.google.com/p/io-2012-slides
     <hgroup>
       <h2>Leaving Heroku</h2>
     </hgroup>
-    <article>
+    <article class="build">
+      <p>
+        What's the low-hanging fruit to scaling this thing?
+      </p>
+      <ul>
+        <li>Postgres read slaves</li>
+        <li>DynamoDB</li>
+        <li>Services</li>
+      </ul>
       <p>
         Ultimately, the answer was to leave and run on EC2 directly.
       </p>
@@ -132,305 +121,263 @@ URL: https://code.google.com/p/io-2012-slides
       <h2>Two Simple Rules</h2>
     </hgroup>
     <article class="build">
-      <h3>Developer-friendly</h3>
-      <ul>
-        <li>Heroku has turned us into little babies.</li>
-        <li>Devs should still wield power over their own ops.</li>
-      </ul>
+      <div>
+        <h3>Developer-friendly</h3>
+        <ul>
+          <li>Heroku has turned us into little babies.</li>
+          <li>Devs should still wield power over their own ops.</li>
+        </ul>
+      </div>
 
-      <h3>See everything</h3>
-      <ul>
-        <li>A failure in monitoring delayed our migration.</li>
-        <li>Ensure that we don't degrade during the change.</li>
-      </ul>
+      <div>
+        <h3>See everything</h3>
+        <ul>
+          <li>A failure in monitoring delayed our migration.</li>
+          <li>Ensure that we don't degrade during the change.</li>
+        </ul>
+      </div>
     </article>
-  </slide>
-
-  <slide hidden>
-    Hidden slides are left out of the presentation.
   </slide>
 
   <slide>
     <hgroup>
-      <h2>Code Slide (with Subtitle Placeholder)</h2>
-      <h3>Subtitle Placeholder</h3>
+      <h2>Four Areas of Concern</h2>
     </hgroup>
     <article>
-      <p>Press 'h' to highlight important sections of code (wrapped in <code>&lt;b&gt;</code>).</p>
-      <pre class="prettyprint" data-lang="javascript">
-&lt;script type='text/javascript'&gt;
-  // Say hello world until the user starts questioning
-  // the meaningfulness of their existence.
-  function helloWorld(world) {
-    <b>for (var i = 42; --i &gt;= 0;) {
-      alert('Hello ' + String(world));
-    }</b>
-  }
-&lt;/script&gt;
+      <h3>Orchestration</h3>
+      <h3>Instance Management</h3>
+      <h3>Deployment</h3>
+      <h3>Monitoring & Logging</h3>
+    </article>
+  </slide>
+
+  <slide>
+    <hgroup>
+      <h2>AWS OpsWorks</h2>
+      <h3>Orchestration</h3>
+    </hgroup>
+    <article class="centered">
+      <img src="images/heroku_app_to_opsworks_stack.png">
+    </article>
+  </slide>
+
+  <slide>
+    <aside class="note">
+      <section>
+        <ul>
+          <li>
+            Since OpsWorks holds the running state and is easily queried,
+            there's no need to synchronize this data anywhere.
+          </li>
+          <li>
+            This was a great design decision espoused by Netflix's Asgard.
+          </li>
+        </ul>
+      </section>
+    </aside>
+    <hgroup>
+      <h2>AWS OpsWorks</h2>
+      <h3>Orchestration</h3>
+    </hgroup>
+    <article>
+      <pre class="prettyprint">
+$ aws opsworks describe-stacks
+{
+  "Stacks": [
+    {
+      "Name": "groupme",
+      "StackId": "XXXXXX",
+      ...
+</pre>
+      <pre class="prettyprint">
+$ aws opsworks describe-instances --stack-id XXXXXX
+{
+  "Instances": [
+    {
+      "PublicDns": "ec2-55-55-555-555.compute-1.amazonaws.com",
+      ...
 </pre>
     </article>
   </slide>
 
   <slide>
     <hgroup>
-      <h2>Code Slide (Smaller Font)</h2>
+      <h2>meta</h2>
+      <h3>Orchestration</h3>
     </hgroup>
-    <article class="smaller">
-      <pre class="prettyprint" data-lang="javascript">
-// Say hello world until the user starts questioning
-// the meaningfulness of their existence.
-function helloWorld(world) {
-  for (var i = 42; --i &gt;= 0;) {
-    alert('Hello ' + String(world));
-  }
+    <article>
+      <pre class="prettyprint">
+$ curl https://meta/apps/show/groupme
+{
+  "formation.app": "web=1",
+  "formation.worker": "worker=4",
+  "formation.consumer": "consumer=1",
+  ...
 }
 </pre>
-<pre class="prettyprint" data-lang="css">
-&lt;style&gt;
-  p { color: pink }
-  b { color: blue }
-&lt;/style&gt;
+    </article>
+  </slide>
+
+  <slide>
+    <hgroup>
+      <h2>AWS OpsWorks</h2>
+      <h3>Instance Management</h3>
+    </hgroup>
+    <article>
+      <ul>
+        <li>OpsWorks is pre-baked with chef.</li>
+        <li>We provide custom cookbooks.</li>
+        <li>Chef is only run at setup and teardown.</li>
+        <li><a href="http://chadfowler.com/blog/2013/06/23/immutable-deployments/">Immutable Infrastructure</a></li>
+      </ul>
+    </article>
+  </slide>
+
+  <slide>
+    <hgroup>
+      <h2>gun</h2>
+      <h3>Deployment</h3>
+    </hgroup>
+    <article class="centered">
+      <img src="images/gun.png">
+    </article>
+  </slide>
+
+  <slide>
+    <hgroup>
+      <h2>meta</h2>
+      <h3>Deployment</h3>
+    </hgroup>
+    <article>
+      <pre class="prettyprint">
+$ curl https://meta/config_vars/show/groupme
+{
+  "RAILS_ENV": "production",
+  "REDIS_URL": "redis://ec2-44-44-444-444.amazonaws.com:6479/0",
+  "DATABASE_URL": "postgres://user:secret@ec2-66-66-666-666.amazonaws.com:5432/",
+  ...
+}
 </pre>
-<pre class="prettyprint" data-lang="html">
-&lt;!DOCTYPE html>
-&lt;html>
-&lt;head>
-  &lt;title>My Awesome Page&lt;/title>
-&lt;/head>
-&lt;body>
-  &lt;p&gt;Hello world&lt;/p&gt;
-&lt;body>
-&lt;/html>
+    </article>
+  </slide>
+
+  <slide>
+    <hgroup>
+      <h2>gun</h2>
+      <h3>Deployment</h3>
+    </hgroup>
+    <article>
+      <h3>1. Upload formation</h3>
+      <h3>2. Upload config vars</h3>
+      <h3>3. Update app</h3>
+      <pre class="prettyprint">
+# git-based update
+$ git fetch origin && git reset --hard REF
+</pre>
+      <pre class="prettyprint">
+# slug-based update
+$ curl -s -o /tmp/SLUG https://anvil/slugs/SLUG
+$ tar x -C /tmp/app /tmp/SLUG
 </pre>
     </article>
   </slide>
 
   <slide>
-    <aside class="note">
-      <section>
-        <ul>
-          <li>Point I wanted to make #1</li>
-          <li>Point I wanted to make #2</li>
-          <li>Point I wanted to make #3</li>
-          <li>Example <a href="#">link</a> in notes.</li>
-        </ul>
-        <p><b>Remember to say this tag line!</b></p>
-      </section>
-    </aside>
     <hgroup>
-      <h2>Slide with Speaker Notes</h2>
+      <h2>gun</h2>
+      <h3>Deployment</h3>
     </hgroup>
     <article>
-      <p>Press 'p' to toggle speaker notes.</p>
+      <h3>4. Start it up</h3>
+      <pre>
+exec su groupme -l -s /bin/bash -c  \
+  "rvm-exec default foreman start   \
+     -p $PORT                       \
+     -f /var/app/Procfile           \
+     -e /etc/app/env                \
+     -m $(cat /etc/app/formation) 2>&1" >> /var/log/app/app.log
+</pre>
     </article>
   </slide>
 
   <slide>
-    <aside class="note">
-      <section>
-        <ul>
-          <li>See this amazing link: <a href="http://www.google.com">link</a>.</li>
-        </ul>
-        <p><b>Remember to say this tag line!</b></p>
-      </section>
-    </aside>
     <hgroup>
-      <h2>Presenter Mode</h2>
+      <h2>Monitoring &amp; Logging</h2>
     </hgroup>
     <article>
-      <p>Add <code><a href="?presentme=true" target="_self">?presentme=true</a></code> to the URL to enabled presenter mode.
-      This setting is sticky, meaning refreshing the page will persist presenter
-      mode.</p>
-      <p>Hit <code><a href="?presentme=false" target="_self">?presentme=false</a></code> to disable presenter mode.</p>
+      <h3>CopperEgg</h3>
+      <p>
+        Like Nagios, but with a nice UI. And you pay for the pleasure.
+      </p>
+      <h3>syslog-ng</h3>
+      <p>
+        A system of relay, archive, and spillway servers.
+      </p>
     </article>
+  </slide>
+
+  <slide id="empty-road" class="segue fill nobackground" style="background-image: url(images/empty_road.jpg)">
+    <footer class="source"><span class="gray4">http://flic.kr/p/8ozBhZ</span></footer>
   </slide>
 
   <slide>
     <hgroup>
-      <h2>Slide with Image</h2>
+      <h2>Private Heroku</h2>
+      <h3>What's next?</h3>
     </hgroup>
     <article>
-      <img src="images/chart.png" class="reflect" alt="Description" title="Description">
-      <footer class="source">source: place source info here</footer>
+      <h3>A few seconds</h3>
+      <pre>
+$ heroku scale web=10 -a groupme
+</pre>
+
+      <h3>A few minutes</h3>
+      <pre>
+$ gun app:groupme instances.create:app, \
+    count=3,                            \
+    instance_type=c1.xlarge,            \
+    availability_zone=us-east-1a
+</pre>
     </article>
   </slide>
 
   <slide>
     <hgroup>
-      <h2>Slide with Image (Centered horz/vert)</h2>
-    </hgroup>
-    <article class="flexbox vcenter">
-      <img src="images/barchart.png" alt="Description" title="Description">
-      <footer class="source">source: place source info here</footer>
-    </article>
-  </slide>
-
-  <slide>
-    <hgroup>
-      <h2>Table Option A</h2>
-      <h3>Subtitle Placeholder</h3>
+      <h2>Containerization</h2>
+      <h3>What's next?</h3>
     </hgroup>
     <article>
-      <table>
-        <tr>
-          <th></th><th>Column 1</th><th>Column 2</th><th>Column 3</th><th>Column 4</th>
-        </tr>
-        <tr>
-          <td>Row 1</td><td>placeholder</td><td class="highlight">placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <td>Row 2</td><td>placeholder</td><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <td>Row 3</td><td>placeholder</td><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <td>Row 4</td><td>placeholder</td><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <td>Row 5</td><td>placeholder</td><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-      </table>
+      <ul>
+        <li>Docker</li>
+        <li>EC2 Backplane</li>
+        <li><a href="http://r.32k.io/adf">Software Delivery via Amazon Docker Workflow</a> by Ryan Smith</li>
+      </ul>
     </article>
   </slide>
 
   <slide>
     <hgroup>
-      <h2>Table Option A (Smaller Text)</h2>
-      <h3>Subtitle Placeholder</h3>
-    </hgroup>
-    <article class="smaller">
-      <table>
-        <tr>
-          <th></th><th>Column 1</th><th>Column 2</th><th>Column 3</th><th>Column 4</th>
-        </tr>
-        <tr>
-          <td>Row 1</td><td>placeholder</td><td class="highlight">placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <td>Row 2</td><td>placeholder</td><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <td>Row 3</td><td>placeholder</td><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <td>Row 4</td><td>placeholder</td><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <td>Row 5</td><td>placeholder</td><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-      </table>
-    </article>
-  </slide>
-
-  <slide>
-    <hgroup>
-      <h2>Table Option B</h2>
-      <h3>Subtitle Placeholder</h3>
+      <h2>gun as a Service</h2>
+      <h3>What's next?</h3>
     </hgroup>
     <article>
-      <table class="rows">
-        <tr>
-          <th>Header 1</th><td>placeholder</td><td class="highlight">placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <th>Header 2</th><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <th>Header 3</th><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <th>Header 4</th><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-        <tr>
-          <th>Header 5</th><td>placeholder</td><td>placeholder</td><td>placeholder</td>
-        </tr>
-      </table>
+      <ul>
+        <li>CI Integration</li>
+        <li>Chat Ops</li>
+      </ul>
     </article>
   </slide>
 
-  <slide>
-    <hgroup>
-      <h2>Slide Styles</h2>
-    </hgroup>
-    <article class="smaller">
-      <div class="columns-2">
-        <ul>
-          <li class="red">class="red"</li>
-          <li class="red2">class="red2"</li>
-          <li class="red3">class="red3"</li>
-          <li class="blue">class="blue"</li>
-          <li class="blue2">class="blue2"</li>
-          <li class="blue3">class="blue3"</li>
-          <li class="green">class="green"</li>
-          <li class="green2">class="green2"</li>
-        </ul>
-        <ul>
-          <li class="green3">class="green3"</li>
-          <li class="yellow">class="yellow"</li>
-          <li class="yellow2">class="yellow2"</li>
-          <li class="yellow3">class="yellow3"</li>
-          <li class="gray">class="gray"</li>
-          <li class="gray2">class="gray2"</li>
-          <li class="gray3">class="gray3"</li>
-          <li class="gray4">class="gray4"</li>
-        </ul>
-      </div>
-      <div class="centered" style="margin-top:2em">
-        I am centered text with a <button>Button</button> and <button disabled>Disabled</button> button.
-      </div>
-    </article>
-  </slide>
-
-  <slide class="segue dark nobackground">
-    <aside class="gdbar"><img src="images/google_developers_icon_128.png"></aside>
-    <hgroup class="auto-fadein">
-      <h2>Segue Slide</h2>
-      <h3>Subtitle Placeholder</h3>
-    </hgroup>
-  </slide>
-
-  <slide class="fill nobackground" style="background-image: url(images/sky.jpg)">
-    <hgroup>
-      <h2 class="white">Full Image (with Optional Header)</h2>
-    </hgroup>
-    <footer class="source white">www.flickr.com/photos/25797459@N06/5438799763/</footer>
-  </slide>
-
-  <slide>
-    <hgroup>
-      <h2>Slide with Iframe</h2>
-    </hgroup>
-    <article>
-      <iframe data-src="http://www.google.com/doodle4google/resources/history.html"></iframe>
-    </article>
-  </slide>
-
-  <slide>
-    <article>
-      <iframe data-src="http://www.google.com/doodle4google/resources/history.html"></iframe>
-    </article>
-  </slide>
-
-  <slide class="thank-you-slide segue nobackground">
-    <aside class="gdbar right"><img src="images/google_developers_icon_128.png"></aside>
+  <slide id="peace" class="segue dark nobackground">
     <article class="flexbox vleft auto-fadein">
-      <h2>&lt;Thank You!&gt;</h2>
-      <p>Important contact information goes here.</p>
+      <h2>Peace</h2>
     </article>
-    <p class="auto-fadein" data-config-contact>
-      <!-- populated from slide_config.json -->
+    <p class="auto-fadein">
+      <a href="https://daveyeu.com/ops-at-groupme">daveyeu.com/ops-at-groupme</a>
     </p>
   </slide>
 
-  <slide class="logoslide dark nobackground">
-    <article class="flexbox vcenter">
-      <span><img src="images/google_developers_logo_white.png"></span>
-    </article>
-  </slide>
-
   <slide class="backdrop"></slide>
-
 </slides>
 
 <script>
